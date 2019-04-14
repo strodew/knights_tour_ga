@@ -10,5 +10,21 @@ class Board:
 		for i in range(self.rows):
 			print(self.squares[i])
 
-testBoard = Board(8,8)
-testBoard.__repr__()
+class Tour:
+	def __init__(self,start):
+		self.start = start
+		self.tour = []
+		self.fitness = 0
+		
+		self.board = Board(8,8)
+		(row, column) = self.start
+		self.board.squares[column - 1][row - 1] = 1
+		
+		self.board.__repr__()
+
+	def tourFitness(self):
+		if self.fitness == 0:
+			self.fitness = len(self.tour)
+		return self.fitness
+
+testRt = Tour((5,7))
