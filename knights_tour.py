@@ -2,6 +2,8 @@
 Genetic algorithm for solving the Knight's Tour problem
 '''
 
+from random import randint
+
 class Board:
 	'''
 	Class for a chessboard with an integer number of rows and columns.
@@ -14,6 +16,7 @@ class Board:
 		self.squares = [['00'] * columns for i in range(rows)]
 
 	def __repr__(self):
+		print('Current board state: ')
 		for i in range(self.rows):
 			print(self.squares[i])
 
@@ -30,41 +33,127 @@ class Tour:
 		self.start = start
 		self.pos = start
 		self.tour = []
+		self.visited = [self.start]
 		self.fitness = 0
 		
 		self.board = Board(8,8)
 		(row, column) = self.start
 		self.board.squares[column - 1][row - 1] = '01'
-		
-		self.board.__repr__()
 
-	def isLegalMove(self,move):
-		moves = [(1,2), (2,1), (2,-1), (1,-2),
+		#list of knight's moves as tuples
+		self.moves = [(1,2), (2,1), (2,-1), (1,-2),
 		 (-1,-2), (-2,-1), (-2,1), (-1,2)]
-		
+
+	def isLegalMove(self,move):	
+		'''
+		Tests a proposed move to check for several conditions:
+		An output of 'legal' means that the square has not been visited and exists on the board
+		An output of 'visited' means that the square exists on the board, but has been visited before
+		And and ouput of False means the square does not exist on the board.
+		'''
 		decMove = int(move,2)
-		moveTup = moves[decMove]
+		moveTup = self.moves[decMove]
 
-		testPos0 = self.pos[0] + moveTup[0]
-		testPos1 = self.pos[1] + moveTup[1]
+		newPosX = self.pos[0] + moveTup[0]
+		newPosY = self.pos[1] + moveTup[1]
+		newPos = (newPosX,newPosY)
 
-		if testPos0 > 0 and testPos0 <= 8 and testPos1 > 0 and testPos1 <= 8:
-			return True
+		if newPosX > 0 and newPosX <= self.board.columns and newPosY > 0 and newPosY <= self.board.rows:
+			if newPos not in self.visited:
+				return 'legal'
+			else:
+				return 'visited'
 		else:
 			return False
 
-	#def generateTour(self):
-	#	while len(self.tour) < 63:
+	def generateTour(self):
+		'''
+		Generates a candidate knight's tour.
+		Move selection is based on random choice of one of 8 possible knight's moves,
+		filtered by the isLegalMove method to make sure that they exist on the board.
 
+		Allows for repeated visits to squares as this is merely intended to produce an initial
+		population upon which selection, mutation and breeding can occur.
+		'''
+		while len(self.tour) < 63:
+			nextMove = randint(0,7)
+			binMove = bin(nextMove)[2:].zfill(3)
+			
+			if self.isLegalMove(binMove) == 'legal' or self.isLegalMove(binMove) == 'visited':
+				self.tour.append(binMove)
+				thisMove = self.moves[nextMove]
+
+				newPosX = self.pos[0] + thisMove[0]
+				newPosY = self.pos[1] + thisMove[1]
+				newPos = (newPosX,newPosY)
+
+				self.pos = newPos
+				self.visited.append(newPos)
+
+			else:
+				pass
 
 	def tourFitness(self):
-		if self.fitness == 0:
-			self.fitness = len(self.tour)
+		'''
+		Fitness function for genetic algorithm
+		Calculates an integer value for fitness between 1 and 63 for each tour,
+		representing the total number of legal moves in the tour.
+		'''
+		newFitness = 0
+		self.pos = self.start
+
+		'''
+		purging list of visited squares for testing fitness
+		old visited list is retained as an iterator for updating self.pos
+		'''
+		positions = self.visited
+		position = iter(self.visited)
+		self.visited = []
+
+		for move in self.tour:
+			if self.isLegalMove(move) == 'legal':
+				newFitness += 1
+			else:
+				self.fitness = newFitness
+				return self.fitness
+			self.pos = next(position)
 		return self.fitness
 
+def generatePop(size):
+	'''
+	Generates a new population of a given integer size. 
+	Returns the population as a list of Tour objects.
+	'''
+	population = []
+	for i in range(size):
+		newTour = Tour((1,1))
+		newTour.generateTour()
+		population.append(newTour)
 
-#Testing statements below
+	return population
 
-testRt = Tour((1,1))
-testBin = bin(4)
-print(testRt.isLegalMove(testBin))
+def rankTours(population):
+	'''
+	Ranks a population of tours based on fitness.
+	Returns a list of the indexes of tours in the population,
+	sorted by the fitness of the tours.
+	'''
+	fitnessDict = {}
+	for i in population:
+		fitnessDict[population.index(i)] = i.tourFitness()
+	fitness_sorted = sorted(fitnessDict, key=fitnessDict.get, reverse=True)
+	return fitness_sorted
+
+def eliteSelection(population,poolSize):
+	'''
+	Selects a mating pool for the generation of the next population.
+	Uses elitist selection, with poolSize representing how many members
+	are selected from the top of the fitness ranked dictionary.
+	'''
+	sort_by_fitness = rankTours(population)
+
+testPop = generatePop(50)
+ranked = rankTours(testPop)
+print(ranked[:10])
+for i in ranked:
+	print(testPop[i].fitness)
