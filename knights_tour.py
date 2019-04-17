@@ -3,6 +3,7 @@ Genetic algorithm for solving the Knight's Tour problem
 '''
 
 from random import randint
+import numpy
 
 class Board:
 	'''
@@ -144,16 +145,43 @@ def rankTours(population):
 	fitness_sorted = sorted(fitnessDict, key=fitnessDict.get, reverse=True)
 	return fitness_sorted
 
-def eliteSelection(population,poolSize):
+def selection(population,eliteSize):
 	'''
-	Selects a mating pool for the generation of the next population.
-	Uses elitist selection, with poolSize representing how many members
-	are selected from the top of the fitness ranked dictionary.
-	'''
-	sort_by_fitness = rankTours(population)
+	First selects the 10 best-performing candidates and guarantees they will be
+	selected at least once for populating the mating pool. 
 
+	The remaining mating candidates are selected weighted by fitness from the 
+	population. The resulting list, selected, will include a number of tours
+	equal to the population size.
+	'''
+	selected = []
+	sort_by_fitness = rankTours(population)
+	elites = sort_by_fitness[:eliteSize]
+	for i in elites:
+		selected.append(population[i])
+
+	#produce cumulative sum of fitnesses for calculating weightings
+	fitness_sum = 0
+	for i in population:
+		fitness_sum += i.fitness
+
+	#calculate a list of fitness-based weightings for the population
+	weights = []
+	for i in population:
+		weight = (i.fitness / fitness_sum)
+		weights.append(weight)
+
+	#select the remainder of the pool weighted by fitness
+	weighted_pool = numpy.random.choice(population,(len(population) - eliteSize), weights)
+
+	for i in weighted_pool:
+		selected.append(i)
+
+	return selected
+
+#testing code
 testPop = generatePop(50)
-ranked = rankTours(testPop)
-print(ranked[:10])
-for i in ranked:
-	print(testPop[i].fitness)
+matingPool = selection(testPop,10)
+for i in matingPool:
+	print(i.fitness)
+
