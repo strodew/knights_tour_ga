@@ -157,6 +157,11 @@ class Tour:
 		return self.visited
 
 	def presentTour(self):
+		'''
+		Displays the moves in a tour on the board, filled to
+		strings of length 2 for readability. Calls Board.__repr__()
+		to present the board for user reading.
+		'''
 		progress = 1
 		for i in range(self.fitness):
 			thisSquare = self.visited[i]
@@ -167,8 +172,6 @@ class Tour:
 		print("Board state at end of tour: ")
 		self.board.__repr__()
 		return None
-
-		
 
 def generatePop(size):
 	'''
@@ -268,7 +271,8 @@ def breedPop(matingPool,eliteSize):
 def mutate(tour,rate):
 	'''
 	Applies a mutation factor to a tour, which represents the
-	likelihood of each 
+	probability of each bit in the move list flipping from 1 to
+	0 or vice versa.
 	'''
 	route = tour.tour
 	newRoute = []
@@ -289,6 +293,9 @@ def mutate(tour,rate):
 	return tour
 
 def mutatePop(population,rate):
+	'''
+	Applies the mutate() function to an entire population.
+	'''
 	mutatedPop = []
 
 	for tour in population:
@@ -298,12 +305,30 @@ def mutatePop(population,rate):
 	return mutatedPop
 
 def newGeneration(currentGen, eliteSize, rate):
+	'''
+	Creates a new generation of tours.
+
+	Takes as arguments the current generation along
+	with the desired size of the elite population
+	and the rate of mutation.
+	'''
 	matingPool = selection(currentGen,eliteSize)
 	children = breedPop(matingPool,eliteSize)
 	nextGen = mutatePop(children,rate)
 	return nextGen
 
 def geneticAlgorithm(popSize, eliteSize, mutationRate, generations, population = generatePop(1000)):
+	'''
+	Executes the genetic algorithm.
+
+	Takes as arguments:
+	Desired population size
+	Desired elite group size
+	Probability of mutation
+	Number of generations
+	Initial population which defaults
+	to the output of generatePop(1000)
+	'''
 	pop = population
 	firstBest = (pop[rankTours(pop)[0]]).fitness
 	print("Best tour from generation 0 of length: " + str(firstBest) + " squares")
@@ -321,4 +346,5 @@ def geneticAlgorithm(popSize, eliteSize, mutationRate, generations, population =
 
 	return finalBest
 
+#adjust arguments as necessary to run
 geneticAlgorithm(1000,50,0.01,100)
