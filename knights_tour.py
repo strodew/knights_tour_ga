@@ -14,7 +14,7 @@ class Board:
 	def __init__(self, rows, columns):
 		self.rows = rows
 		self.columns = columns
-		self.squares = [[0] * columns for i in range(rows)]
+		self.squares = [['00'] * columns for i in range(rows)]
 
 	def __repr__(self):
 		print('Current board state: ')
@@ -101,27 +101,29 @@ class Tour:
 		representing the total number of legal moves in the tour.
 		'''
 		newFitness = 0
+
 		self.pos = self.start
+		visited = self.visited
+		self.visited = [self.start]
 
-		'''
-		purging list of visited squares for testing fitness
-		old visited list is retained as an iterator for updating self.pos
-		'''
-		positions = self.visited
-		itPositions = positions
-		del itPositions[0]
-		self.visited = []
-
-		for move,pos in zip(self.tour,itPositions):
+		for move,pos in zip(self.tour,visited):
 			self.pos = pos
 			if self.isLegalMove(move) == 'legal':
 				newFitness += 1
+				
+				decMove = int(move,2)
+				moveTup = self.moves[decMove]
+				newPosX = self.pos[0] + moveTup[0]
+				newPosY = self.pos[1] + moveTup[1]
+				newPos = (newPosX,newPosY)
+
+				self.visited.append(newPos)
 			else:
 				self.fitness = newFitness
-				self.visited = positions
+				self.visited = visited
 				return self.fitness
 
-		self.visited = positions
+		self.visited = visited
 		return self.fitness
 
 	def repairVisited(self):
@@ -153,6 +155,19 @@ class Tour:
 			index += 1
 
 		return self.visited
+
+	def presentTour(self):
+		progress = 1
+		for i in range(self.fitness):
+			thisSquare = self.visited[i]
+			(row,column) = thisSquare
+			self.board.squares[column - 1][row - 1] = str(progress).zfill(2)
+			progress += 1
+
+		print("Board state at end of tour: ")
+		self.board.__repr__()
+		return None
+
 		
 
 def generatePop(size):
@@ -292,15 +307,18 @@ def geneticAlgorithm(popSize, eliteSize, mutationRate, generations, population =
 	pop = population
 	firstBest = (pop[rankTours(pop)[0]]).fitness
 	print("Best tour from generation 0 of length: " + str(firstBest) + " squares")
-	print((pop[rankTours(pop)[0]]).visited)
+	(pop[rankTours(pop)[0]]).presentTour()
 
 	for i in range(generations):
 		pop = newGeneration(pop, eliteSize, mutationRate)
+		for tour in pop:
+			tour.repairVisited()
+			tour.tourFitness()
 
 	finalBest = (pop[rankTours(pop)[0]]).fitness
 	print("Best tour from final generation of length " + str(finalBest) + " squares")
-	print((pop[rankTours(pop)[0]]).visited)
+	(pop[rankTours(pop)[0]]).presentTour()
 
 	return finalBest
 
-geneticAlgorithm(100,5,0.05,50)
+geneticAlgorithm(1000,50,0.01,100)
