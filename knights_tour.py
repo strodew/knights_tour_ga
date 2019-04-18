@@ -2,19 +2,19 @@
 Genetic algorithm for solving the Knight's Tour problem
 '''
 
-from random import randint
+from random import randint,sample,random
 import numpy
 
 class Board:
 	'''
 	Class for a chessboard with an integer number of rows and columns.
 	Includes a method to display the board in the console. self.squares
-	contains the board as a nested list populated with the string '00'
+	contains the board as a nested list populated with the integer 0
 	'''
 	def __init__(self, rows, columns):
 		self.rows = rows
 		self.columns = columns
-		self.squares = [['00'] * columns for i in range(rows)]
+		self.squares = [[0] * columns for i in range(rows)]
 
 	def __repr__(self):
 		print('Current board state: ')
@@ -39,7 +39,7 @@ class Tour:
 		
 		self.board = Board(8,8)
 		(row, column) = self.start
-		self.board.squares[column - 1][row - 1] = '01'
+		self.board.squares[column - 1][row - 1] = 1
 
 		#list of knight's moves as tuples
 		self.moves = [(1,2), (2,1), (2,-1), (1,-2),
@@ -108,17 +108,52 @@ class Tour:
 		old visited list is retained as an iterator for updating self.pos
 		'''
 		positions = self.visited
-		position = iter(self.visited)
+		itPositions = positions
+		del itPositions[0]
 		self.visited = []
 
-		for move in self.tour:
+		for move,pos in zip(self.tour,itPositions):
+			self.pos = pos
 			if self.isLegalMove(move) == 'legal':
 				newFitness += 1
 			else:
 				self.fitness = newFitness
+				self.visited = positions
 				return self.fitness
-			self.pos = next(position)
+
+		self.visited = positions
 		return self.fitness
+
+	def repairVisited(self):
+		'''
+		Takes a tour that has been produced by crossover breeding
+		and repairs the visited list to ensure it is still accurate
+		to the new tour list
+		'''
+		self.pos = self.start
+		try:
+			self.visited[0] = self.start
+		except IndexError:
+			self.visited.append(self.start)
+		index = 1
+		for i in self.tour:
+			decMove = int(i,2)
+			moveTup = self.moves[decMove]
+
+			newPosX = self.pos[0] + moveTup[0]
+			newPosY = self.pos[1] + moveTup[1]
+			newPos = (newPosX,newPosY)
+
+			try:
+				self.visited[index] = newPos
+			except IndexError:
+				self.visited.append(newPos)
+			
+			self.pos = newPos
+			index += 1
+
+		return self.visited
+		
 
 def generatePop(size):
 	'''
@@ -152,7 +187,7 @@ def selection(population,eliteSize):
 
 	The remaining mating candidates are selected weighted by fitness from the 
 	population. The resulting list, selected, will include a number of tours
-	equal to the population size.
+	equal to the original population size.
 	'''
 	selected = []
 	sort_by_fitness = rankTours(population)
@@ -179,9 +214,93 @@ def selection(population,eliteSize):
 
 	return selected
 
-#testing code
-testPop = generatePop(50)
-matingPool = selection(testPop,10)
-for i in matingPool:
-	print(i.fitness)
+def breed(parent1,parent2):
+	'''
+	Function to take 2 parent tours and apply crossover breeding
+	to produce a new child tour. The currently-legal portion of
+	tour 1 is sliced from it and combined with the remainder 
+	of tour 2.
+	'''
+	child = Tour((1,1))
+	
+	part1 = parent1.tour[:parent1.fitness]
+	part2 = parent2.tour[parent1.fitness:]
+	newRoute = list.__add__(part1,part2)
 
+	child.tour = newRoute
+	return child
+
+def breedPop(matingPool,eliteSize):
+	'''
+	Applies breed() to a the mating pool of individual tours.
+	Automatically carries forward elite tours to the next
+	generation before breeding occurs.
+	'''
+	newPop = []
+
+	requiredChildren = len(matingPool) - eliteSize
+	scrambledPool = sample(matingPool, len(matingPool))
+
+	for i in range(eliteSize):
+		newPop.append(matingPool[i])
+
+	for i in range(requiredChildren):
+		child = breed(scrambledPool[i], scrambledPool[len(matingPool)-i-1])
+		newPop.append(child)
+
+	return newPop
+
+def mutate(tour,rate):
+	'''
+	Applies a mutation factor to a tour, which represents the
+	likelihood of each 
+	'''
+	route = tour.tour
+	newRoute = []
+	for move in route:
+		new = []
+		for bit in move:
+			if random() < rate:
+				if bit == '0':
+					new.append('1')
+				else:
+					new.append('0')
+			else:
+				new.append(bit)
+		newMove = ''.join(new)
+		newRoute.append(newMove)
+
+	tour.tour = newRoute
+	return tour
+
+def mutatePop(population,rate):
+	mutatedPop = []
+
+	for tour in population:
+		mutated = mutate(tour,rate)
+		mutatedPop.append(mutated)
+
+	return mutatedPop
+
+def newGeneration(currentGen, eliteSize, rate):
+	matingPool = selection(currentGen,eliteSize)
+	children = breedPop(matingPool,eliteSize)
+	nextGen = mutatePop(children,rate)
+	return nextGen
+
+def geneticAlgorithm(popSize, eliteSize, mutationRate, generations, population = generatePop(1000)):
+	pop = population
+	firstBest = (pop[rankTours(pop)[0]]).fitness
+	print("Best tour from generation 0 of length: " + str(firstBest) + " squares")
+	print((pop[rankTours(pop)[0]]).visited)
+
+	for i in range(generations):
+		pop = newGeneration(pop, eliteSize, mutationRate)
+
+	finalBest = (pop[rankTours(pop)[0]]).fitness
+	print("Best tour from final generation of length " + str(finalBest) + " squares")
+	print((pop[rankTours(pop)[0]]).visited)
+
+	return finalBest
+
+geneticAlgorithm(100,5,0.05,50)
